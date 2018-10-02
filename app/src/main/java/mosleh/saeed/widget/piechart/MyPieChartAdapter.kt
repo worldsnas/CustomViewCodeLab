@@ -1,15 +1,19 @@
-package mosleh.saeed.widget.PieChart
+package mosleh.saeed.widget.piechart
 
 import android.graphics.Paint
-import java.util.*
 
 
 class MyPieChartAdapter : PieChartAdapter {
 
 
+    constructor(data: List<PieDataInterface>, max: Float) : super(data, max) {
+        processDrawData()
+    }
+
     constructor(data: List<PieDataInterface>, max: Float, paintStyle: Paint.Style, stroke: Int) : super(data, max, paintStyle, stroke) {
         processDrawData()
     }
+
     override fun processDrawData() {
         var lastAngle = -90f
         data.forEach {

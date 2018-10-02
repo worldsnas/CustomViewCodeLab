@@ -1,4 +1,4 @@
-package mosleh.saeed.widget.PieChart
+package com.kingadel.piechart
 
 import android.graphics.Paint
 

@@ -1,4 +1,4 @@
-package mosleh.saeed.widget.PieChart
+package mosleh.saeed.widget.piechart
 
 
 interface PieDataInterface {
