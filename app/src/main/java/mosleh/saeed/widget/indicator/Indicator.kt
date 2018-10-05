@@ -1,14 +1,13 @@
 package mosleh.saeed.widget.indicator
 
-import android.animation.ArgbEvaluator
-import android.animation.PropertyValuesHolder
-import android.animation.ValueAnimator
+import android.animation.*
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.util.AttributeSet
+import android.util.Log
 import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.LinearInterpolator
@@ -19,6 +18,7 @@ class Indicator(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
     }
 
+    val items = ArrayList<IndicatorModel>()
     private var totalCount = 5
 
     private var verticalPadding = 20
@@ -29,6 +29,7 @@ class Indicator(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
     private var circleDiameter: Int = 0
     private var circleDefaultRadius: Int = 0
+
 
     private var lastSelectedPage: Int = 0
     private var selectedPage: Int = 0
@@ -41,6 +42,10 @@ class Indicator(context: Context, attrs: AttributeSet?) : View(context, attrs) {
     private var reveseColor = Color.WHITE
     private var newColor = Color.GREEN
     private var rotate = 0F
+
+    private var selectedXTranslation = 0f
+    private var selectedYTranslation = 0f
+    private var unselectedCurrentTranslationX = 0f
     //    var viewPager: ViewPager? =null
 //    set(value) {
 //        value!!.addOnPageChangeListener(object : ViewPager.OnPageChangeListener{
@@ -84,6 +89,18 @@ class Indicator(context: Context, attrs: AttributeSet?) : View(context, attrs) {
         val totalCircleSpace = totalCount + (totalCount - 1)
         circleDiameter = horizontalDrawArea / totalCircleSpace
         circleDefaultRadius = circleDiameter / 2
+        initItems(circleDiameter)
+    }
+
+    private fun initItems(diameter: Int) {
+        for (i in 0..4) {
+            if (i == 0) {
+                items.add(IndicatorModel(paintFill, true, diameter.toFloat()))
+            } else {
+                items.add(IndicatorModel(paintGrayFill, false, diameter.toFloat()))
+
+            }
+        }
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -91,47 +108,105 @@ class Indicator(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
         if (totalCount > 0) {
 
-            for (i in 0 until totalCount) {
-                val lengthOfPreCircles = circleDiameter * i
-                val lengthOfPreLines = circleDiameter * i
-                val cx = lengthOfPreCircles + lengthOfPreLines + circleDefaultRadius + (horizontalPadding / 2)
 
+            for (pos in items.indices) {
+                val it = items[pos]
+                val lengthOfPreCircles = circleDiameter * pos
+                val lengthOfPreLines = circleDiameter * pos
+                val cx = lengthOfPreCircles + lengthOfPreLines + circleDefaultRadius + (horizontalPadding / 2)
                 val top = (height / 2) - 10F
                 val bottom = (height / 2) + 10F
-                val left = cx - circleDefaultRadius.toFloat()
-                val right = cx + circleDefaultRadius.toFloat()
+                val left = cx - it.radius
+                val right = cx + it.radius
                 ovalRectF.left = left
                 ovalRectF.right = right
                 ovalRectF.bottom = bottom
                 ovalRectF.top = top
+                if (it.isSelected) {
+                    ovalRectF.left = left + selectedXTranslation
+                    ovalRectF.right = right + selectedXTranslation
+                    ovalRectF.bottom = bottom + selectedYTranslation
+                    ovalRectF.top = top + selectedYTranslation
 
-                val ovalPaint = if (selectedPage == i) {
-                    paintFill
+                }
+                if (lastSelectedPage < selectedPage) {
+                    if (pos in (lastSelectedPage + 1)..(selectedPage)) {
+                        ovalRectF.left = left - unselectedCurrentTranslationX
+                        ovalRectF.right = right - unselectedCurrentTranslationX
+                    }
                 } else {
-                    paintGrayFill
+                    if (pos in (selectedPage)..(lastSelectedPage - 1)) {
+                        ovalRectF.left = left + unselectedCurrentTranslationX
+                        ovalRectF.right = right + unselectedCurrentTranslationX
+                    }
                 }
 
-                ovalPaint.color = when (i) {
-                    selectedPage -> newColor
-                    lastSelectedPage -> reveseColor
-                    else -> Color.WHITE
-                }
-                if (selectedPage == i) {
-                    canvas.rotate(rotate)
-                }else{
-                    canvas.rotate(0F)
-                }
-                canvas.drawOval(ovalRectF, ovalPaint)
+                canvas.drawOval(ovalRectF, it.paint)
             }
+//            for (i in 0 until totalCount) {
+//
+//
+////                ovalPaint.color = when (i) {
+////                    selectedPage -> newColor
+////                    lastSelectedPage -> reveseColor
+////                    else -> Color.WHITE
+////                }
+////                if (selectedPage == i) {
+////                    canvas.rotate(rotate)
+////                }else{
+////                    canvas.rotate(0F)
+////                }
+////                canvas.drawOval(ovalRectF, ovalPaint)
+//            }
         }
 
     }
 
-    public fun setSelectedPage(selected: Int) {
-        lastSelectedPage = selectedPage
-        selectedPage = selected
+    fun setSelectedPage(selected: Int) {
+        if (selected != lastSelectedPage) {
+            lastSelectedPage = selectedPage
+            selectedPage = selected
+            Log.i("indicator", "current: $selected, Last: $lastSelectedPage ")
+            animateToCurrentPos()
+        }
+    }
 
-        animateColors()
+    private fun animateToCurrentPos() {
+
+        val distance = selectedPage - lastSelectedPage
+        val animatorXValue = PropertyValuesHolder.ofFloat("translate_x", 0F, circleDiameter * 2 * distance.toFloat())
+        val animatorYValue = PropertyValuesHolder.ofFloat("translate_y", 0F, circleDiameter.toFloat() * 2)
+        val rotation = PropertyValuesHolder.ofFloat("rotate", 0F, 180f)
+
+        val animator = ValueAnimator()
+        animator.setValues(animatorXValue, animatorYValue)
+        animator.duration = 800
+        animator.interpolator = AccelerateDecelerateInterpolator()
+        animator.addUpdateListener {
+            selectedXTranslation = it.getAnimatedValue("translate_x") as Float
+            unselectedCurrentTranslationX = (it.getAnimatedValue("translate_x") as Float) / distance
+            val yValue = it.getAnimatedValue("translate_y") as Float
+            val tempYTranslate = if (yValue < circleDiameter)
+                (it.getAnimatedValue("translate_y") as Float) % circleDiameter
+            else
+                circleDiameter - ((it.getAnimatedValue("translate_y") as Float) % circleDiameter)
+            if (tempYTranslate < circleDiameter * 0.7)
+                selectedYTranslation = tempYTranslate
+            invalidate()
+        }
+        animator.addListener(object : AnimatorListenerAdapter() {
+            override fun onAnimationEnd(animation: Animator) {
+                selectedXTranslation = 0f
+                selectedYTranslation = 0f
+                unselectedCurrentTranslationX = 0f
+                items[lastSelectedPage].isSelected = false
+                items[lastSelectedPage].paint = paintGrayFill
+                items[selectedPage].isSelected = true
+                items[selectedPage].paint = paintFill
+                invalidate()
+            }
+        })
+        animator.start()
     }
 
     public fun animateColors() {
