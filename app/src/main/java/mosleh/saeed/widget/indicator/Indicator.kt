@@ -1,5 +1,6 @@
 package mosleh.saeed.widget.indicator
 
+import android.animation.ArgbEvaluator
 import android.animation.PropertyValuesHolder
 import android.animation.ValueAnimator
 import android.content.Context
@@ -10,7 +11,6 @@ import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
-import android.view.animation.DecelerateInterpolator
 import android.view.animation.LinearInterpolator
 
 class Indicator(context: Context, attrs: AttributeSet?) : View(context, attrs) {
@@ -19,8 +19,6 @@ class Indicator(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
     }
 
-    private val duration = 1500 // ms
-    private var selectedPosition = 0
     private var totalCount = 5
 
     private var verticalPadding = 20
@@ -31,16 +29,18 @@ class Indicator(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
     private var circleDiameter: Int = 0
     private var circleDefaultRadius: Int = 0
-    private var circleAnimatingRadius: Int = 0
 
     private var lastSelectedPage: Int = 0
-
     private var selectedPage: Int = 0
 
-    private val RADIUS_VALUE_ANIMATOR = "radius_value_animator"
-    private val ALPHA_VALUE_ANIMATOR = "alpha_value_animator"
+    private val REVERSE_COLOR_VALUE_ANIMATOR = "reverse_color_value_animator"
+    private val COLOR_VALUE_ANIMATOR = "color_value_animator"
+    private val ROTATE_VALUE_ANIMATOR = "rotate_value_animator"
 
 
+    private var reveseColor = Color.WHITE
+    private var newColor = Color.GREEN
+    private var rotate = 0F
     //    var viewPager: ViewPager? =null
 //    set(value) {
 //        value!!.addOnPageChangeListener(object : ViewPager.OnPageChangeListener{
@@ -84,7 +84,6 @@ class Indicator(context: Context, attrs: AttributeSet?) : View(context, attrs) {
         val totalCircleSpace = totalCount + (totalCount - 1)
         circleDiameter = horizontalDrawArea / totalCircleSpace
         circleDefaultRadius = circleDiameter / 2
-        circleAnimatingRadius = circleDefaultRadius
     }
 
     override fun onDraw(canvas: Canvas) {
@@ -95,8 +94,7 @@ class Indicator(context: Context, attrs: AttributeSet?) : View(context, attrs) {
             for (i in 0 until totalCount) {
                 val lengthOfPreCircles = circleDiameter * i
                 val lengthOfPreLines = circleDiameter * i
-                val cx = lengthOfPreCircles + lengthOfPreLines + circleAnimatingRadius + (horizontalPadding / 2)
-
+                val cx = lengthOfPreCircles + lengthOfPreLines + circleDefaultRadius + (horizontalPadding / 2)
 
                 val top = (height / 2) - 10F
                 val bottom = (height / 2) + 10F
@@ -107,14 +105,22 @@ class Indicator(context: Context, attrs: AttributeSet?) : View(context, attrs) {
                 ovalRectF.bottom = bottom
                 ovalRectF.top = top
 
-                val ovalPaint = if (selectedPage == i){
+                val ovalPaint = if (selectedPage == i) {
                     paintFill
-                }else{
+                } else {
                     paintGrayFill
                 }
 
-
-
+                ovalPaint.color = when (i) {
+                    selectedPage -> newColor
+                    lastSelectedPage -> reveseColor
+                    else -> Color.WHITE
+                }
+                if (selectedPage == i) {
+                    canvas.rotate(rotate)
+                }else{
+                    canvas.rotate(0F)
+                }
                 canvas.drawOval(ovalRectF, ovalPaint)
             }
         }
@@ -125,19 +131,25 @@ class Indicator(context: Context, attrs: AttributeSet?) : View(context, attrs) {
         lastSelectedPage = selectedPage
         selectedPage = selected
 
-        val radiusHolder = PropertyValuesHolder.ofInt(RADIUS_VALUE_ANIMATOR, 0, circleDefaultRadius)
-        val alphaHolder = PropertyValuesHolder.ofFloat(ALPHA_VALUE_ANIMATOR, 0F, 1F)
+        animateColors()
+    }
+
+    public fun animateColors() {
+        val colorHolder = PropertyValuesHolder.ofObject(COLOR_VALUE_ANIMATOR, ArgbEvaluator(), Color.WHITE, Color.GREEN)
+        val reverseColorHolder = PropertyValuesHolder.ofObject(REVERSE_COLOR_VALUE_ANIMATOR, ArgbEvaluator(), Color.GREEN, Color.WHITE)
+        val rotateHolder = PropertyValuesHolder.ofFloat(ROTATE_VALUE_ANIMATOR, 0F, 180F)
 
         val animator = ValueAnimator()
-        animator.setValues(radiusHolder, alphaHolder)
-        animator.duration = 200
+        animator.duration = 1000
         animator.interpolator = AccelerateDecelerateInterpolator()
+        animator.setValues(colorHolder, reverseColorHolder, rotateHolder)
         animator.addUpdateListener { animation ->
-            val radius = animation.getAnimatedValue(RADIUS_VALUE_ANIMATOR) as Int
-            val alpha = animation.getAnimatedValue(ALPHA_VALUE_ANIMATOR) as Float
+            newColor = animation.getAnimatedValue(COLOR_VALUE_ANIMATOR) as Int
+            reveseColor = animation.getAnimatedValue(REVERSE_COLOR_VALUE_ANIMATOR) as Int
+            rotate = animation.getAnimatedValue(ROTATE_VALUE_ANIMATOR) as Float
+            invalidate()
         }
         animator.start()
-        invalidate()
     }
 
     public fun setPageAnimated(selected: Int) {
@@ -145,9 +157,10 @@ class Indicator(context: Context, attrs: AttributeSet?) : View(context, attrs) {
         animator.duration = 1000
         animator.interpolator = LinearInterpolator()
         animator.addUpdateListener { animation ->
-            circleAnimatingRadius = animation.animatedValue as Int
+            //            circleAnimatingRadius = animation.animatedValue as Int
             invalidate()
         }
         animator.start()
     }
+
 }
