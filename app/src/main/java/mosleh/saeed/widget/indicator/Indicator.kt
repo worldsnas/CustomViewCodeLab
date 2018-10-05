@@ -1,12 +1,15 @@
 package mosleh.saeed.widget.indicator
 
+import android.animation.PropertyValuesHolder
 import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.RectF
 import android.util.AttributeSet
 import android.view.View
+import android.view.animation.AccelerateDecelerateInterpolator
 import android.view.animation.DecelerateInterpolator
 import android.view.animation.LinearInterpolator
 
@@ -33,6 +36,9 @@ class Indicator(context: Context, attrs: AttributeSet?) : View(context, attrs) {
     private var lastSelectedPage: Int = 0
 
     private var selectedPage: Int = 0
+
+    private val RADIUS_VALUE_ANIMATOR = "radius_value_animator"
+    private val ALPHA_VALUE_ANIMATOR = "alpha_value_animator"
 
 
     //    var viewPager: ViewPager? =null
@@ -63,16 +69,13 @@ class Indicator(context: Context, attrs: AttributeSet?) : View(context, attrs) {
         isAntiAlias = true
         style = Paint.Style.FILL
     }
-
-    private fun init() {
-
-//        Observable.interval(0, 16, TimeUnit.MILLISECONDS)
-//                .subscribeOn(Schedulers.io())
-//                .observeOn(AndroidSchedulers.mainThread())
-//                .subscribe {
-//                    invalidate()
-//                }
+    private val paintGrayFill = Paint().apply {
+        color = Color.WHITE
+        isAntiAlias = true
+        style = Paint.Style.FILL
     }
+
+    private val ovalRectF = RectF()
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         super.onLayout(changed, left, top, right, bottom)
@@ -94,22 +97,25 @@ class Indicator(context: Context, attrs: AttributeSet?) : View(context, attrs) {
                 val lengthOfPreLines = circleDiameter * i
                 val cx = lengthOfPreCircles + lengthOfPreLines + circleAnimatingRadius + (horizontalPadding / 2)
 
-                var radius = circleDefaultRadius
-                var paint = paintStroke
 
-                if (i == selectedPage) {
-                    paint = paintFill
-                    radius = circleAnimatingRadius
+                val top = (height / 2) - 10F
+                val bottom = (height / 2) + 10F
+                val left = cx - circleDefaultRadius.toFloat()
+                val right = cx + circleDefaultRadius.toFloat()
+                ovalRectF.left = left
+                ovalRectF.right = right
+                ovalRectF.bottom = bottom
+                ovalRectF.top = top
+
+                val ovalPaint = if (selectedPage == i){
+                    paintFill
+                }else{
+                    paintGrayFill
                 }
 
-                canvas.drawCircle(cx.toFloat(),
-                        height / 2F,
-                        radius.toFloat(),
-                        paint)
-//                if (i < totalCount - 1) {
-//                    val startX = cx + circleDefaultRadius.toFloat()
-//                    canvas.drawLine(startX, (height / 2F) - 4, startX + circleDiameter, (height / 2F) - 4, paintStroke)
-//                }
+
+
+                canvas.drawOval(ovalRectF, ovalPaint)
             }
         }
 
@@ -118,12 +124,17 @@ class Indicator(context: Context, attrs: AttributeSet?) : View(context, attrs) {
     public fun setSelectedPage(selected: Int) {
         lastSelectedPage = selectedPage
         selectedPage = selected
-        val animator = ValueAnimator.ofInt(0, circleDefaultRadius)
+
+        val radiusHolder = PropertyValuesHolder.ofInt(RADIUS_VALUE_ANIMATOR, 0, circleDefaultRadius)
+        val alphaHolder = PropertyValuesHolder.ofFloat(ALPHA_VALUE_ANIMATOR, 0F, 1F)
+
+        val animator = ValueAnimator()
+        animator.setValues(radiusHolder, alphaHolder)
         animator.duration = 200
-        animator.interpolator = LinearInterpolator()
+        animator.interpolator = AccelerateDecelerateInterpolator()
         animator.addUpdateListener { animation ->
-            circleAnimatingRadius = animation.animatedValue as Int
-            invalidate()
+            val radius = animation.getAnimatedValue(RADIUS_VALUE_ANIMATOR) as Int
+            val alpha = animation.getAnimatedValue(ALPHA_VALUE_ANIMATOR) as Float
         }
         animator.start()
         invalidate()
